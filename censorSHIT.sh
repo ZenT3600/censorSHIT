@@ -6,8 +6,8 @@ function show_help() {
     echo "
  censorSHIT - Simple script to avoid hash-based recognition systems on messaging apps
  ===
- -v | --verbose
-    Enable debug-level logs
+ -v | -vv | -vvv | ...
+    Specify the logger's verbosity level
 
  -h | --help
     Show this help message and quit
@@ -34,21 +34,21 @@ function show_help() {
 }
 
 function log_echo() {
-    if [ ! $VERBOSE ]; then
-        if [ $2 == $C_DEBUG ]; then
-            return
-        fi
+    LVL=$(echo "$2" | sed 's/.*|//g')
+    COL=$(echo "$2" | sed 's/|.*//g')
+    if [[ $LVL -gt $VERBOSE ]]; then
+        return
     fi
-    echo "($2) [$(date)] $1"
+    echo "($COL) [$(date)] $1"
 }
 
 function log_gum() {
-    if [ ! $VERBOSE ]; then
-        if [ $2 == $C_DEBUG ]; then
-            return
-        fi
+    LVL=$(echo "$2" | sed 's/.*|//g')
+    COL=$(echo "$2" | sed 's/|.*//g')
+    if [[ $LVL -gt $VERBOSE ]]; then
+        return
     fi
-    echo '{{Color "'$2'" " (*)"}}{{ Color "'$C_MUTE'" " ['$(date)']" }}' $1 | gum format -t template
+    echo '{{Color "'$COL'" " (*)"}}{{ Color "'$S_C_MUTE'" " ['$(date)']" }}' $1 | gum format -t template
 }
 
 LOG="log_gum"
@@ -67,11 +67,12 @@ require openssl
 require ffmpeg
 require mogrify
 
-C_ERR=1
-C_INFO=10
-C_WARN=11
-C_MUTE=8
-C_DEBUG=4
+S_C_MUTE="8"
+C_ERR="1|0"
+C_INFO="10|0"
+C_WARN="11|0"
+C_DEBUG="4|1"
+C_TRACE="5|2"
 
 FFMPEG="ffmpeg -loglevel quiet"
 
@@ -93,7 +94,6 @@ function random_area() {
     echo -n "$X,$Y $(( $X + 1 )),$(( $Y + 1 ))"
 }
 
-
 POSITIONAL_ARGS=()
 NOISEVOL=0.2
 PIXELSNUM=1
@@ -102,8 +102,8 @@ LOGGER="gum"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    -v|--verbose)
-        VERBOSE=true
+    -v*)
+        VERBOSE=$(( $(echo $1 | sed 's/-//g' | wc -c) - 1 ))
         shift
         ;;
     -h|--help)
@@ -157,6 +157,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 set -- "${POSITIONAL_ARGS[@]}"
+trap '$LOG "$BASH_COMMAND" $C_TRACE' DEBUG
 
 INVID="$1"
 if [ -z $INVID ]; then
