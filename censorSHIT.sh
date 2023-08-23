@@ -24,6 +24,10 @@ function show_help() {
     Modify the number of pixels overlayed on the original video.
     Default is: 1
 
+ -o | --out
+    Specify the name of to use for the output file.
+    Default is: out.mp4
+
  [ POSITIONAL ]
     Specify the video to modify
 "
@@ -93,6 +97,8 @@ function random_area() {
 POSITIONAL_ARGS=()
 NOISEVOL=0.2
 PIXELSNUM=1
+OUTFILE="out.mp4"
+LOGGER="gum"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -134,6 +140,11 @@ while [[ $# -gt 0 ]]; do
         shift
         shift
         ;;
+    -o|--out)
+        OUTFILE=$2
+        shift
+        shift
+        ;;
     -*|--*)
         $LOG "Invalid option: $1" $C_ERR
         exit 1
@@ -159,6 +170,7 @@ $LOG "NOISEVOL = $NOISEVOL" $C_DEBUG
 $LOG "PIXELSNUM = $PIXELSNUM" $C_DEBUG
 $LOG "LOGGER = $LOGGER" $C_DEBUG
 $LOG "VIDEO = $INVID" $C_DEBUG
+$LOG "OUTFILE = $OUTFILE" $C_DEBUG
 
 $LOG "Creating temporary directory at $TMP ..." $C_INFO
 mkdir -p $TMP
@@ -197,10 +209,10 @@ $FFMPEG -i ${TMP}input-audio.mp3 -i ${TMP}quiet.$NOISE -filter_complex amix=inpu
 
 $LOG "Re-encoding modified frames into video ..." $C_INFO
 $FFMPEG -framerate $FPS -pattern_type glob -i "$TMP*.jpg" \
-  -c:v libx264 -pix_fmt yuv420p silent.out.mp4
+  -c:v libx264 -pix_fmt yuv420p silent.$OUTFILE
 
 $LOG "Re-encoding final audio track into video ..." $C_INFO
-$FFMPEG -i silent.out.mp4 -i ${TMP}output-audio.mp3 -c copy -map 0:v:0 -map 1:a:0 out.mp4
+$FFMPEG -i silent.$OUTFILE -i ${TMP}output-audio.mp3 -c copy -map 0:v:0 -map 1:a:0 $OUTFILE
 
 $LOG "Cleaning up ..." $C_INFO
-rm -rf $TMP silent.out.mp4
+rm -rf $TMP silent.$OUTFILE
