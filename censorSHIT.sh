@@ -13,8 +13,12 @@ function show_help() {
     Show this help message and quit
 
  -l | --logger
-    Specify the method to log message to the console
+    Specify the method to log message to the console.
     Options are: echo, gum, quiet
+
+ -n | --noise
+    Modify the volume of the noise track overlayed on the original audio.
+    Default is: 0.2
 
  [ POSITIONAL ]
     Specify the video to modify
@@ -83,6 +87,7 @@ function random_area() {
 
 
 POSITIONAL_ARGS=()
+NOISEVOL=0.2
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -114,6 +119,11 @@ while [[ $# -gt 0 ]]; do
         shift
         shift
         ;;
+    -n|--noise)
+        NOISEVOL=$2
+        shift
+        shift
+        ;;
     -*|--*)
         $LOG "Invalid option: $i" $C_ERR
         exit 1
@@ -135,6 +145,7 @@ fi
 TMP="tmp.$(openssl rand -base64 6)/"
 $LOG "VERBOSE = $VERBOSE" $C_DEBUG
 $LOG "TMP = $TMP" $C_DEBUG
+$LOG "NOISEVOL = $NOISEVOL" $C_DEBUG
 $LOG "LOGGER = $LOGGER" $C_DEBUG
 $LOG "VIDEO = $INVID" $C_DEBUG
 
@@ -166,7 +177,7 @@ $FFMPEG -f lavfi -i nullsrc=s=1280x720 -filter_complex "geq=random(1)*255:128:12
 $FFMPEG -i $TMP$NOISE -map 0 -map -v ${TMP}void.$NOISE
 
 $LOG "Quieting down noise track ..." $C_INFO
-$FFMPEG -i ${TMP}void.$NOISE -filter:a "volume=0.2" ${TMP}quiet.$NOISE
+$FFMPEG -i ${TMP}void.$NOISE -filter:a "volume=$NOISEVOL" ${TMP}quiet.$NOISE
 
 $LOG "Merging original audio and noise track into final audio track ..." $C_INFO
 $FFMPEG -i ${TMP}input-audio.mp3 -i ${TMP}quiet.$NOISE -filter_complex amix=inputs=2:duration=shortest ${TMP}output-audio.mp3
