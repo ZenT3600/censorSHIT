@@ -20,6 +20,10 @@ function show_help() {
     Modify the volume of the noise track overlayed on the original audio.
     Default is: 0.2
 
+ -p | --pixels
+    Modify the number of pixels overlayed on the original video.
+    Default is: 1
+
  [ POSITIONAL ]
     Specify the video to modify
 "
@@ -88,6 +92,7 @@ function random_area() {
 
 POSITIONAL_ARGS=()
 NOISEVOL=0.2
+PIXELSNUM=1
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -124,8 +129,13 @@ while [[ $# -gt 0 ]]; do
         shift
         shift
         ;;
+    -p|--pixels)
+        PIXELSNUM=$2
+        shift
+        shift
+        ;;
     -*|--*)
-        $LOG "Invalid option: $i" $C_ERR
+        $LOG "Invalid option: $1" $C_ERR
         exit 1
         ;;
     *)
@@ -142,10 +152,11 @@ if [ -z $INVID ]; then
     $LOG "Invalid input file" $C_ERR
     exit -1
 fi
-TMP="tmp.$(openssl rand -base64 6)/"
+TMP="tmp.$(openssl rand -hex 6)/"
 $LOG "VERBOSE = $VERBOSE" $C_DEBUG
 $LOG "TMP = $TMP" $C_DEBUG
 $LOG "NOISEVOL = $NOISEVOL" $C_DEBUG
+$LOG "PIXELSNUM = $PIXELSNUM" $C_DEBUG
 $LOG "LOGGER = $LOGGER" $C_DEBUG
 $LOG "VIDEO = $INVID" $C_DEBUG
 
@@ -162,7 +173,9 @@ $FFMPEG -i $INVID -r $FPS $TMP$filename%03d.jpg
 
 $LOG "Modifying original video frames  ..." $C_INFO
 find $TMP -type f | while read INFRAME; do
-    mogrify -fill "$(random_hex)" -draw " rectangle $(random_area $SIZE) " $INFRAME
+    for i in $(seq 1 $PIXELSNUM); do
+        mogrify -fill "$(random_hex)" -draw " rectangle $(random_area $SIZE) " $INFRAME
+    done
 done
 
 $LOG "Exporting orignal audio into temporary directory ..." $C_INFO
