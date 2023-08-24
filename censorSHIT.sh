@@ -6,8 +6,9 @@ function show_help() {
     echo "
  censorSHIT - Simple script to avoid hash-based recognition systems on messaging apps
  ===
- -v | -vv | -vvv | ...
-    Specify the logger's verbosity level
+ -v
+    Specify the logger's verbosity level.
+    Can be added multiple times.
 
  -h | --help
     Show this help message and quit
@@ -102,8 +103,8 @@ LOGGER="gum"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    -v*)
-        VERBOSE=$(( $(echo $1 | sed 's/-//g' | wc -c) - 1 ))
+    -v)
+        VERBOSE=$(( $VERBOSE + 1 ))
         shift
         ;;
     -h|--help)
