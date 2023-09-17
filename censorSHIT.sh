@@ -8,7 +8,7 @@ function show_help() {
  ===
  -v
     Specify the logger's verbosity level.
-    Can be added multiple times.
+    Can be stacked.
 
  -h | --help
     Show this help message and quit
@@ -31,7 +31,7 @@ function show_help() {
 
  [ POSITIONAL ]
     Specify the video to modify
-"
+    "
 }
 
 function log_echo() {
@@ -59,7 +59,7 @@ function require_gum() {
 }
 
 function require() {
-    if ! type "$1" > /dev/null; then echo "!!! Missing required dependency: $1 !!!" && exit -2; fi
+    if ! type "$1" > /dev/null; then echo "!!! Missing required dependency: $1 !!!" && exit 2; fi
 }
 
 require_gum
@@ -77,8 +77,8 @@ C_TRACE="5|2"
 
 FFMPEG="ffmpeg -loglevel quiet"
 
-function ceil() {                                                                       
-  echo "define ceil (x) {if (x<0) {return x/1} \
+function ceil() {
+    echo "define ceil (x) {if (x<0) {return x/1} \
         else {if (scale(x)==0) {return x} \
         else {return x/1 + 1 }}} ; ceil($1)" | bc
 }
@@ -88,11 +88,11 @@ function random_hex() {
 }
 
 function random_area() {
-    W=$(( $(echo $1 | sed 's/x.*//g') - 1))
-    H=$(( $(echo $1 | sed 's/.*x//g') - 1 ))
+    W=$(($(echo $1 | sed 's/x.*//g') - 1))
+    H=$(($(echo $1 | sed 's/.*x//g') - 1))
     X=$(echo $(($RANDOM % $W)))
     Y=$(echo $(($RANDOM % $H)))
-    echo -n "$X,$Y $(( $X + 1 )),$(( $Y + 1 ))"
+    echo -n "$X,$Y $(($X + 1)),$(($Y + 1))"
 }
 
 POSITIONAL_ARGS=()
@@ -101,60 +101,61 @@ PIXELSNUM=1
 OUTFILE="out.mp4"
 LOGGER="gum"
 
+shopt -s extglob
 while [[ $# -gt 0 ]]; do
-  case $1 in
-    -v)
-        VERBOSE=$(( $VERBOSE + 1 ))
-        shift
-        ;;
-    -h|--help)
-        show_help
-        exit 0
-        ;;
-    -l|--logger)
-        LOGGER=$2
-        case $LOGGER in
-            "gum")
-                LOG="log_gum"
-                ;;
-            "echo")
-                LOG="log_echo"
-                ;;
-            "quiet")
-                LOG=":"
-                ;;
-            *)
-                $LOG "Invalid logger: $LOGGER" $C_ERR
-                exit 1
-                ;;
-        esac
-        shift
-        shift
-        ;;
-    -n|--noise)
-        NOISEVOL=$2
-        shift
-        shift
-        ;;
-    -p|--pixels)
-        PIXELSNUM=$2
-        shift
-        shift
-        ;;
-    -o|--out)
-        OUTFILE=$2
-        shift
-        shift
-        ;;
-    -*|--*)
-        $LOG "Invalid option: $1" $C_ERR
-        exit 1
-        ;;
-    *)
-        POSITIONAL_ARGS+=("$1")
-        shift
-        ;;
-  esac
+    case $1 in
+        -v*)
+            VERBOSE=$(($(echo "$1" | wc -c) - 2))
+            shift
+            ;;
+        -h | --help)
+            show_help
+            exit 0
+            ;;
+        -l | --logger)
+            LOGGER=$2
+            case $LOGGER in
+                "gum")
+                    LOG="log_gum"
+                    ;;
+                "echo")
+                    LOG="log_echo"
+                    ;;
+                "quiet")
+                    LOG=":"
+                    ;;
+                *)
+                    $LOG "Invalid logger: $LOGGER" $C_ERR
+                    exit 1
+                    ;;
+            esac
+            shift
+            shift
+            ;;
+        -n | --noise)
+            NOISEVOL=$2
+            shift
+            shift
+            ;;
+        -p | --pixels)
+            PIXELSNUM=$2
+            shift
+            shift
+            ;;
+        -o | --out)
+            OUTFILE=$2
+            shift
+            shift
+            ;;
+        -* | --*)
+            $LOG "Invalid option: $1" $C_ERR
+            exit 1
+            ;;
+        *)
+            POSITIONAL_ARGS+=("$1")
+            shift
+            ;;
+    esac
 done
 
 set -- "${POSITIONAL_ARGS[@]}"
@@ -163,7 +164,7 @@ trap '$LOG "$BASH_COMMAND" $C_TRACE' DEBUG
 INVID="$1"
 if [ -z $INVID ]; then
     $LOG "Invalid input file" $C_ERR
-    exit -1
+    exit 1
 fi
 TMP="tmp.$(openssl rand -hex 6)/"
 $LOG "VERBOSE = $VERBOSE" $C_DEBUG
@@ -195,7 +196,7 @@ done
 $LOG "Exporting orignal audio into temporary directory ..." $C_INFO
 $FFMPEG -i $INVID -vn -acodec libmp3lame ${TMP}input-audio.mp3
 
-LENGTH=$(ceil $(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $INVID) )
+LENGTH=$(ceil $(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $INVID))
 $LOG "LENGTH = $LENGTH" $C_DEBUG
 
 $LOG "Generating noise track of same length as original video ..." $C_INFO
@@ -211,7 +212,7 @@ $FFMPEG -i ${TMP}input-audio.mp3 -i ${TMP}quiet.$NOISE -filter_complex amix=inpu
 
 $LOG "Re-encoding modified frames into video ..." $C_INFO
 $FFMPEG -framerate $FPS -pattern_type glob -i "$TMP*.jpg" \
-  -c:v libx264 -pix_fmt yuv420p silent.$OUTFILE
+    -c:v libx264 -pix_fmt yuv420p silent.$OUTFILE
 
 $LOG "Re-encoding final audio track into video ..." $C_INFO
 $FFMPEG -i silent.$OUTFILE -i ${TMP}output-audio.mp3 -c copy -map 0:v:0 -map 1:a:0 $OUTFILE
